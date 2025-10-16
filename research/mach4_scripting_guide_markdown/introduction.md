@@ -1,0 +1,21 @@
+# 1 Introduction
+
+---
+**Navigation:** ← [Previous: Table of Contents](table_of_contents.md) | [Next: 2 Script Editor](script_editor.md) → | [📋 Table of Contents](table_of_contents.md)
+---
+
+# Introduction
+The purpose of this manual is to teach the basics of scripting in Mach4 using the Lua interface.  Scripts add functionality to Mach4 by providing the user with an interface to create custom M codes, macros to control tool changers and other custom accessories, create programming wizards, custom button functions, and much more.  This manual will provide some basic programming knowledge as it pertains to creating scripts for Mach4.  For more advanced Lua programming there are a variety of resources available online and in print.
+## Before You Begin
+[![Image 7200](images/image_7200.png)]([[bsexport:image:7200]])
+Any machine tool is potentially dangerous. Computer controlled machines are potentially more dangerous than manual ones because, for example, a computer is quite prepared to rotate an 8" unbalanced cast iron four-jaw chuck at 3000 rpm, to plunge a panel-fielding router cutter deep into a piece of oak, or to mill away the clamps holding your work to the table. Because we do not know the details of your machine or local conditions we can accept no responsibility for the performance of any machine or any 
+damage or injury caused by its use. It is your responsibility to ensure that you understand the implications of what you design and build and to comply with any legislation and codes of practice applicable to your country or state. If you are in any doubt, be sure to seek guidance from a professionally qualified expert rather than risk injury to yourself or to others.
+***What is Mach4?***
+Mach4 is software that operates on a personal computer to create a powerful and cost efficient CNC controller.  It makes up one small piece of a computer numerical control (CNC) machine.  Machines can range from basic mills and lathes to wood routers, plasma cutters, multi axis machining centers, quilting machines, anything requiring motion control.  The system is capable of interpreting multiple programming languages, the default and most common being G code, to provide instructions for machine movement and other functions.  These instructions are passed to an external motion device which in turn controls all the inputs and output signals and motion.
+Mach4 is designed to be flexible and adaptable to a wide variety of machines.  Part of this flexibility is the ability for hardware and software developers to create addons or plugins for Mach4 to expand its capabilities.  Addons are small programs installed into the Mach4 directory that give Mach the ability to talk to hardware devices such as motion controllers and pendants, communicate with other software, add additional wizards or conversational machining functions, or anything a developer can dream up.  Addons to Mach4 are so diverse it would be impossible to cover them in this manual.  The developer should provide detailed information on the installation, configuration and use of their addon or plugin.
+***What is a Mach4 Script?***
+Scripts in Mach4 are written in the Lua programming language.  Users and OEMs can create scripts to accomplish any number of tasks, limited only by the programmer’s imagination.  There are four types of scripts in Mach4: M codes, modules, screen, and panels.  M codes, screen scripts and panel scripts are each separate containers for code.  They cannot interact with each other directly.  For example, a variable or function defined in an M code cannot be used in a script on the screen.  However, modules provide a place to put code that can be accessed by the others.  An M code or screen script can call and use functions and variables from a loaded module.  Registers are a powerful way to pass data between different processes in Mach4 and can be used as a bridge between script types.
+
+---
+**Navigation:** ← [Previous: Table of Contents](table_of_contents.md) | [Next: 2 Script Editor](script_editor.md) → | [📋 Table of Contents](table_of_contents.md)
+---
