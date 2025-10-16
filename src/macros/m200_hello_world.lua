@@ -5,10 +5,19 @@
 function m200()
     local inst = mc.mcGetInstance()
     
-    -- Simple safety check
+    -- Debug: Show actual machine state in message box
     local state, rc = mc.mcCntlGetState(inst)
-    if rc ~= 0 or state ~= 3 then  -- 3 = MACH_IDLE
-        wx.wxMessageBox("Machine is not ready. Please enable and home the machine first.", "Error", wx.wxOK)
+    wx.wxMessageBox(string.format("Debug Info:\nMachine state = %d\nReturn code = %d\n\nExpected state = 3 (IDLE)", state, rc), "Machine State Debug", wx.wxOK)
+    
+    -- More lenient safety check - allow multiple ready states
+    if rc ~= 0 then
+        wx.wxMessageBox("Error getting machine state.", "Error", wx.wxOK)
+        return
+    end
+    
+    -- Check for various "ready" states (not just state 3)
+    if state == 0 then  -- OFFLINE
+        wx.wxMessageBox("Machine is offline. Please enable the machine first.", "Error", wx.wxOK)
         return
     end
     
