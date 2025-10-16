@@ -134,8 +134,9 @@ function mc.mcCntlGcodeExecute(inst, gcode)
     if y_match then mock_state.position.y = tonumber(y_match) end
     if z_match then mock_state.position.z = tonumber(z_match) end
     
-    mock_state.gcode_executing = true
-    -- Simulate execution time with a small delay
+    -- For testing purposes, simulate very quick execution completion
+    -- Real macro would poll and wait for completion
+    mock_state.gcode_executing = false
     return 0
 end
 
@@ -165,12 +166,32 @@ end
 
 -- Machine state
 function mc.mcCntlGetState(inst)
-    return mock_state.machine_enabled and 3 or 0, 0  -- 3 = MACH_IDLE, 0 = MACH_OFFLINE
+    return mock_state.machine_enabled and 200 or 0, 0  -- 200 = Avid Benchtop Pro ready state, 0 = MACH_OFFLINE
 end
 
 function mc.mcCntlEnable(inst, enable)
     mock_state.machine_enabled = (enable == MC_ON)
     return 0
+end
+
+-- Axis homing (for aluminum cutting macro validation)
+function mc.mcAxisIsHomed(inst, axis)
+    -- Mock assumes all axes are homed when machine is enabled
+    return mock_state.machine_enabled, 0
+end
+
+-- Feed hold state (for aluminum cutting macro validation)
+function mc.mcCntlFeedHoldState(inst)
+    return false, 0  -- Not in feed hold
+end
+
+-- Completion monitoring (for aluminum cutting macro execution)
+function mc.mcCntlIsInCycle(inst)
+    return mock_state.gcode_executing, 0
+end
+
+function mc.mcCntlIsStill(inst)
+    return not mock_state.gcode_executing, 0
 end
 
 -- Spindle control
@@ -215,10 +236,31 @@ _G.scr = scr
 -- Mock wx (wxWidgets) for message boxes
 local wx = {}
 
+-- wx constants for dialog responses
+wx.wxYES = 5
+wx.wxNO = 6
+wx.wxOK = 4
+wx.wxYES_NO = 12
+wx.wxICON_QUESTION = 256
+wx.wxICON_WARNING = 512
+
 function wx.wxMessageBox(message, caption, style)
     print("MOCK MESSAGE BOX: " .. (caption or "Message"))
     print("  " .. message)
-    return 0  -- Mock OK response
+    
+    -- For testing, automatically approve aluminum cutting operation
+    if caption and string.find(caption, "Aluminum Cutting Operation") then
+        print("  [MOCK AUTO-APPROVING aluminum cutting operation]")
+        return wx.wxYES
+    end
+    
+    -- Default to OK/YES for other dialogs
+    return style and (style & wx.wxYES_NO == wx.wxYES_NO) and wx.wxYES or wx.wxOK
+end
+
+-- Mock wxSafeYield for progress monitoring
+function wx.wxSafeYield()
+    -- No-op for testing
 end
 
 _G.wx = wx
