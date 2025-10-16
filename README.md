@@ -23,13 +23,24 @@ Simple Mach4 plugin for Avid Benchtop Pro CNC that demonstrates basic G-code gen
 ```
 src/
 ├── macros/m200_hello_world.lua       # Main macro (copy to Mach4)
-├── screens/                          # UI components for Screen Editor
+├── screens/                          # UI components + installer
+├── deployment/                       # Automated installation scripts
 └── tests/                           # Testing framework + 9 tests
 ```
 
-## Add Custom UI (Optional)
+## Add Custom UI
 
-See `src/screens/UI_SETUP.md` for step-by-step Screen Editor instructions.
+### Quick Setup (Automated)
+1. **Run installer** in Mach4 Operator console:
+   ```lua
+   local installer = require("deployment.auto_installer")
+   installer.install()
+   ```
+2. **Create UI controls** in Screen Editor: text field `txtMoveSize`, button `btnExecuteMove`
+3. **Verify**: `installer.verify_installation()`
+
+### Manual Setup (Fallback)
+See `src/screens/UI_SETUP.md` for detailed Screen Editor instructions.
 
 ## Development Testing
 

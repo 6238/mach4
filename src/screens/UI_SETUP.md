@@ -1,8 +1,27 @@
-# Custom UI Setup
+# Custom UI Setup - Automated Installation
 
-Add text input and button to your Mach4 screen:
+The Hello World Plugin now supports **automated installation** that eliminates most manual setup steps.
 
-## Screen Editor Steps
+## Quick Setup (Recommended)
+
+1. **Load the installer** in Mach4 Operator console:
+   ```lua
+   local installer = require("deployment.auto_installer")
+   installer.install()
+   ```
+
+2. **Create UI controls** in Screen Editor:
+   - **Text Field**: Name `txtMoveSize`, default value `2.0`
+   - **Button**: Name `btnExecuteMove`, label "Execute Square Move"
+
+3. **Run installation script** (from Operator console):
+   ```lua
+   installer.verify_installation()
+   ```
+
+## Manual Setup (Fallback)
+
+If automated installation fails, use the traditional method:
 
 1. **Operator** → **Edit Screen**
 2. **Add Text Field**: Name `txtMoveSize`, default value `2.0`
@@ -17,4 +36,12 @@ Square Size (inches): [2.0      ]
        [ Execute Square Move ]
 ```
 
-Result: UI with input validation, safety checks, and error handling.
+## Features
+- **Automated script injection** - no manual copying required
+- **Input validation** and safety checks
+- **Error handling** and user feedback
+- **Register-based configuration** for persistent settings
+- **M200 macro integration** for G-code compatibility
+
+## Verification
+Run `installer.verify_installation()` to check that all components are properly configured.
