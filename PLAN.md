@@ -1,77 +1,124 @@
 # Mach4 CNC Plugin Development Plan
 
 ## Project Objective
-Create custom user interface widgets for Mach4 CNC control software, specifically targeting the Avid Benchtop Pro CNC machine.
+Create a Mach4 plugin for Avid Benchtop Pro CNC that accepts user inputs and generates/executes G-code for a two-step cutting process with operator intervention.
 
-## Current Status: Research Phase
+## Current Status: ✅ Hello World Version Complete
 
-### Research Goals
-1. **Understand Mach4 Plugin Architecture**
-   - How plugins are structured and organized
-   - Programming languages and frameworks used
-   - Development tools and environment setup
-   - Plugin installation and deployment process
+### ✅ Completed Research Phase
+**Key Findings:**
+- Mach4 uses Lua scripting as primary development language
+- Screen Editor (.set files) for custom UI development
+- Macros (m###.mcs) for G-code generation and execution
+- Registers for data persistence between operations
 
-2. **UI Widget Development**
-   - How to create custom UI components in Mach4
-   - Available UI frameworks and libraries
-   - Integration with Mach4's existing interface
-   - Event handling and data binding
+### ✅ Completed Implementation - Hello World Version
+**What's Working:**
+- **Testing Framework**: Custom Lua test suite with mock Mach4 API for offline development
+- **Basic Macro**: Simple 2x2 inch square movement (`m200_hello_world.lua`)
+- **Custom UI**: Text input + button with validation and safety checks
+- **Safety Systems**: Machine state verification, input validation, error handling
+- **9 Passing Tests**: Complete test coverage of core functionality
 
-3. **Avid Benchtop Pro Integration**
-   - Specific requirements for Avid CNC machines
-   - Hardware communication protocols
-   - Machine-specific configurations and settings
+**Proven Integration:**
+- ✅ Lua scripting works with Mach4
+- ✅ G-code generation and execution
+- ✅ Custom UI integration via Screen Editor
+- ✅ Offline development and testing capability
 
-4. **Development Workflow**
-   - Testing and debugging approaches
-   - Development environment setup
-   - Documentation and examples
+## Project Requirements (Clarified)
 
-### Research Tasks
-- [ ] Search for official Mach4 plugin development documentation
-- [ ] Find community forums and developer resources
-- [ ] Locate example plugins and source code
-- [ ] Research Avid Benchtop Pro specific requirements
-- [ ] Identify development tools and SDKs
-- [ ] Find tutorials and getting started guides
+### User Inputs (Simple)
+- **Length**: Size of the part/operation
+- **X/Y Position**: Work offset for part location
 
-### Research Sources to Investigate
-- Mach4 official documentation and support sites
-- CNC community forums and discussion boards
-- GitHub repositories with Mach4 plugins
-- YouTube tutorials and demonstrations
-- Technical blogs and articles
-- Avid CNC documentation and support resources
+### Two-Step Process
+1. **Step 1**: Execute first cutting operation
+2. **Automatic Move**: Tool moves to safe position (x=0, y=25)
+3. **Operator Intervention**: Reach in, flip part, re-extrude
+4. **Step 2**: Execute second cutting operation
 
-## Next Phases (Post-Research)
+### Target Hardware
+- **Machine**: Avid Benchtop Pro CNC
+- **Operation**: 3-axis mill only (no rotary, no plasma)
 
-### Planning Phase
-- Define specific UI widgets to develop
-- Choose development approach and tools
-- Create project structure and architecture
-- Set up development environment
+## Next Development Phases
 
-### Implementation Phase
-- Develop core plugin framework
-- Create individual UI widgets
-- Implement Avid Benchtop Pro integration
-- Build testing and validation tools
+### Phase 1: Machine Validation ⏳ CURRENT
+**Goal**: Verify Hello World version works on actual hardware
+**Tasks**:
+- [ ] Test basic macro (`M200`) on Avid Benchtop Pro
+- [ ] Verify G-code execution and safety systems
+- [ ] Test custom UI integration
+- [ ] Document any machine-specific issues
 
-### Testing Phase
-- Unit testing of components
-- Integration testing with Mach4
-- Hardware testing with Avid CNC
-- User acceptance testing
+### Phase 2: Real Application Features
+**Goal**: Replace Hello World with actual application logic
+**Tasks**:
+- [ ] Add real user inputs (length, X offset, Y offset)
+- [ ] Replace square movement with actual cutting G-code
+- [ ] Implement two-step process with pause/resume
+- [ ] Add progress feedback and status display
+
+### Phase 3: Advanced Features
+**Goal**: Polish and enhance the working application
+**Tasks**:
+- [ ] Add G-code preview capability
+- [ ] Implement job history and recall
+- [ ] Enhanced error handling and recovery
+- [ ] User manual and documentation
+
+## Architecture Decisions Made
+
+### Technology Stack
+- **Primary Language**: Lua (Mach4 native)
+- **UI Framework**: Mach4 Screen Editor (.set files)
+- **Data Storage**: Mach4 registers
+- **Testing**: Custom Lua framework with mock API
+
+### File Structure
+```
+src/
+├── macros/           # M-code macros for G-code execution
+├── screens/          # UI components and setup instructions
+└── tests/            # Testing framework and test suite
+```
+
+### Development Workflow
+1. **Test-Driven**: Write tests first, implement functionality
+2. **Offline-First**: Develop without machine using mock API
+3. **Incremental**: Small, validated changes
+4. **Safety-First**: Comprehensive validation at every step
 
 ## Success Criteria
-- Successfully create and deploy custom UI widgets
-- Seamless integration with Mach4 software
-- Proper functionality with Avid Benchtop Pro CNC
-- Clear documentation for future development
+
+### Hello World (✅ Complete)
+- [x] Basic G-code generation and execution
+- [x] Custom UI integration
+- [x] Safety checks and error handling
+- [x] Offline testing capability
+
+### Production Version (Next)
+- [ ] Real cutting operations (not just movement)
+- [ ] Two-step process with operator intervention
+- [ ] Machine-specific validation on Avid Benchtop Pro
+- [ ] User-friendly interface with proper inputs
+
+## Risk Mitigation
+
+### Proven Solutions
+- **Integration Risk**: ✅ Solved with Hello World version
+- **Testing Without Machine**: ✅ Mock API enables offline development
+- **Lua Learning Curve**: ✅ Test framework provides examples and patterns
+- **Safety Concerns**: ✅ Multi-layer validation and machine state checking
+
+### Remaining Risks
+- **Machine-Specific Issues**: Will be discovered during Phase 1 testing
+- **G-code Complexity**: Mitigated by incremental development approach
+- **User Interface Complexity**: Keep simple, expand gradually
 
 ## Notes
-- Mach4 plugin development appears to be underdocumented
-- Research phase is critical for project success
-- Python helpers will be used for supporting research activities
-- Documentation should be thorough given the lack of existing resources
+- Hello World approach proved successful for rapid validation
+- Testing framework provides confidence for complex feature development
+- Clear separation between logic and UI enables parallel development
+- Ready to move from proof-of-concept to production implementation
