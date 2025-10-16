@@ -15,6 +15,7 @@ The following 10 videos from playlist PL7IitnI6IOQAUp6rOgtcQLwz7U8E4XHvq failed 
 8. `eaYf73sQTDg` - https://www.youtube.com/watch?v=eaYf73sQTDg
 9. `ry80BT3xGIo` - https://www.youtube.com/watch?v=ry80BT3xGIo
 10. `ab6PXwBP62A` - https://www.youtube.com/watch?v=ab6PXwBP62A
+11. `G85p1VsD3lk` - https://www.youtube.com/watch?v=G85p1VsD3lk
 
 **Command to retry individually:**
 ```bash
@@ -24,7 +25,7 @@ source scripts/venv/bin/activate && python3 scripts/youtube_transcripts.py "VIDE
 **Command to retry all at once (if IP block is lifted):**
 ```bash
 source scripts/venv/bin/activate
-for vid in TMzAT0eb3p0 QPHtXEufFwM t2xQYvAXT8o _0WhzbFvoAM mZ7IAkK55pk wNPMqjkcJ_8 AthCnSaqV08 eaYf73sQTDg ry80BT3xGIo ab6PXwBP62A; do
+for vid in TMzAT0eb3p0 QPHtXEufFwM t2xQYvAXT8o _0WhzbFvoAM mZ7IAkK55pk wNPMqjkcJ_8 AthCnSaqV08 eaYf73sQTDg ry80BT3xGIo ab6PXwBP62A G85p1VsD3lk; do
   python3 scripts/youtube_transcripts.py "https://www.youtube.com/watch?v=$vid"
   sleep 5  # Add delay between requests
 done
