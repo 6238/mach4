@@ -29,18 +29,18 @@ function m200()
         string.format("X%.3f Y%.3f", curr_x, curr_y),             -- Return to start
     }
     
-    -- Execute each G-code command
-    for i, gcode in ipairs(gcode_commands) do
-        print("Executing: " .. gcode)
-        local rc = mc.mcCntlGcodeExecute(inst, gcode)
-        if rc ~= 0 then
-            local error_msg, _ = mc.mcCntlGetErrorString(inst, rc)
-            wx.wxMessageBox("Error executing G-code: " .. gcode .. "\nError: " .. error_msg, "G-code Error", wx.wxOK)
-            return
-        end
-        
-        -- Small delay to allow command to complete
-        os.execute("sleep 0.1")
+    -- Concatenate all G-code commands into a single string
+    local gcode_program = table.concat(gcode_commands, "\n") .. "\n"
+    
+    print("Executing G-code program:")
+    print(gcode_program)
+    
+    -- Execute the entire G-code program and wait for completion
+    local rc = mc.mcCntlGcodeExecuteWait(inst, gcode_program)
+    if rc ~= 0 then
+        local error_msg, _ = mc.mcCntlGetErrorString(inst, rc)
+        wx.wxMessageBox("Error executing G-code program:\n" .. error_msg, "G-code Error", wx.wxOK)
+        return
     end
     
     wx.wxMessageBox("Hello World test completed! Tool moved in a 2x2 inch square.", "Success", wx.wxOK)

@@ -20,6 +20,7 @@ function run_all_tests()
     local test_files = {
         "test_hello_world",
         "test_ui_functionality",
+        "test_gcode_execution",
         -- Add more test files as they are created
     }
     

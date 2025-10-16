@@ -118,10 +118,11 @@ end
 
 -- G-code execution
 function mc.mcCntlGcodeExecute(inst, gcode)
-    -- Simulate G-code execution
+    -- Simulate G-code execution (individual commands)
     table.insert(mock_state.gcode_history, {
         gcode = gcode,
-        timestamp = os.time()
+        timestamp = os.time(),
+        method = "individual"
     })
     
     -- Parse basic G-code commands for position simulation
@@ -135,6 +136,30 @@ function mc.mcCntlGcodeExecute(inst, gcode)
     
     mock_state.gcode_executing = true
     -- Simulate execution time with a small delay
+    return 0
+end
+
+function mc.mcCntlGcodeExecuteWait(inst, gcode_program)
+    -- Simulate bulk G-code program execution
+    table.insert(mock_state.gcode_history, {
+        gcode = gcode_program,
+        timestamp = os.time(),
+        method = "bulk",
+        line_count = select(2, string.gsub(gcode_program, '\n', '\n')) + 1
+    })
+    
+    -- Parse all G-code commands in the program for position simulation
+    for line in gcode_program:gmatch("[^\r\n]+") do
+        local x_match = string.match(line, "X([%-+]?[%d%.]+)")
+        local y_match = string.match(line, "Y([%-+]?[%d%.]+)")
+        local z_match = string.match(line, "Z([%-+]?[%d%.]+)")
+        
+        if x_match then mock_state.position.x = tonumber(x_match) end
+        if y_match then mock_state.position.y = tonumber(y_match) end
+        if z_match then mock_state.position.z = tonumber(z_match) end
+    end
+    
+    mock_state.gcode_executing = false  -- Program completed
     return 0
 end
 
@@ -163,6 +188,11 @@ function mc.mcCntlGetErrorString(inst, error_code)
         [-3] = "Not implemented"
     }
     return error_messages[error_code] or "Unknown error", 0
+end
+
+-- Editor detection
+function mc.mcInEditor()
+    return 0  -- Return 0 (false) when running in test mode
 end
 
 -- Screen/UI related functions
