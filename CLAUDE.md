@@ -169,3 +169,29 @@ research/
 4. **Testing Phase** - Test with Avid Benchtop Pro CNC setup
 
 This CLAUDE.md file should be updated as research reveals the actual Mach4 development requirements and toolchain.
+
+## Testing Requirements
+
+**CRITICAL: Always run tests after making changes to code**
+
+After any modification to Lua macros, utilities, or core functionality:
+
+1. **Run the test suite immediately:**
+   ```bash
+   cd src/tests
+   lua test_runner.lua
+   ```
+
+2. **Verify all tests pass** before considering the change complete
+
+3. **Update tests** if functionality changes require new test expectations
+
+4. **Add new tests** for any new features or macros created
+
+The test suite validates:
+- Macro functionality and G-code execution
+- Mock API compatibility 
+- UI functionality
+- Error handling and edge cases
+
+**Test failures must be resolved before proceeding with additional development.**

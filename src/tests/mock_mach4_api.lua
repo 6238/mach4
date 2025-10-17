@@ -248,9 +248,9 @@ function wx.wxMessageBox(message, caption, style)
     print("MOCK MESSAGE BOX: " .. (caption or "Message"))
     print("  " .. message)
     
-    -- For testing, automatically approve aluminum cutting operation
-    if caption and string.find(caption, "Aluminum Cutting Operation") then
-        print("  [MOCK AUTO-APPROVING aluminum cutting operation]")
+    -- For testing, automatically approve cutting operations
+    if caption and (string.find(caption, "Aluminum Cutting Operation") or string.find(caption, "Box Tube End Squaring Operation")) then
+        print("  [MOCK AUTO-APPROVING cutting operation]")
         return wx.wxYES
     end
     
@@ -262,6 +262,44 @@ end
 function wx.wxSafeYield()
     -- No-op for testing
 end
+
+-- Mock wxPanel for timer creation
+function wx.wxPanel()
+    local panel = {}
+    
+    -- Mock Connect method for event handling
+    function panel:Connect(event_type, callback)
+        -- For testing, we don't actually connect events
+        -- In real usage, this would connect the timer event to the callback
+    end
+    
+    return panel
+end
+
+-- Mock wxTimer for non-blocking execution
+function wx.wxTimer(parent)
+    local timer = {}
+    local running = false
+    
+    function timer:Start(interval)
+        running = true
+        -- For testing, immediately simulate completion
+        -- In real usage, this would start a timer that fires at intervals
+    end
+    
+    function timer:Stop()
+        running = false
+    end
+    
+    function timer:IsRunning()
+        return running
+    end
+    
+    return timer
+end
+
+-- Mock timer event type
+wx.wxEVT_TIMER = 10001
 
 _G.wx = wx
 

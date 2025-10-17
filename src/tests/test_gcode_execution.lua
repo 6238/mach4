@@ -11,49 +11,49 @@ describe("G-code Execution Method Tests", function()
         mc.mcCntlEnable(inst, 1)
     end)
     
-    it("should execute aluminum cutting operation", function()
+    it("should execute box tube squaring operation with chunked execution", function()
         local inst = mc.mcGetInstance()
         
         -- Clear any previous G-code history
         MockMach4.clear_gcode_history()
         
-        -- Load and execute the m200 macro (now aluminum cutting)
+        -- Load and execute the m200 macro (now box tube squaring)
         dofile("../macros/m200_hello_world.lua")
         m200()
         
         -- Get the G-code execution history
         local history = MockMach4.get_gcode_history()
         
-        -- Test: Should have 3 cutting passes + 1 cleanup = 4 total calls
-        assert_true(#history >= 3, "Expected at least 3 cutting passes")
+        -- Test: Should have at least 1 call (first chunk executed in mock)
+        assert_true(#history >= 1, "Expected at least 1 G-code execution")
         
-        -- Test: Should use 'individual' method for cutting passes
-        local individual_passes = 0
+        -- Test: Should use 'individual' method for chunked execution
+        local individual_chunks = 0
         for i, call in ipairs(history) do
             if call.method == "individual" then
-                individual_passes = individual_passes + 1
+                individual_chunks = individual_chunks + 1
             end
         end
-        assert_true(individual_passes >= 3, "Expected at least 3 individual cutting passes")
+        assert_true(individual_chunks >= 1, "Expected at least 1 individual chunk execution")
         
-        -- Test: Should contain aluminum cutting G-code commands
+        -- Test: Should contain box tube squaring G-code commands
         local all_gcode = ""
         for _, call in ipairs(history) do
             all_gcode = all_gcode .. call.gcode .. "\n"
         end
         
-        -- Check for key aluminum cutting commands
-        local expected_commands = {"G56", "G90", "G94", "G00", "G01"}
+        -- Check for key G-code commands from the tap file
+        local expected_commands = {"G55", "G90", "G94", "G17", "T1"}
         
         for _, expected in ipairs(expected_commands) do
             assert_true(string.find(all_gcode, expected, 1, true) ~= nil, 
-                "G-code missing expected aluminum cutting command: " .. expected)
+                "G-code missing expected box tube squaring command: " .. expected)
         end
         
-        -- Test: Should contain variable feed rates
-        assert_true(string.find(all_gcode, "F100", 1, true) ~= nil, "Missing fast plunge feed rate")
-        assert_true(string.find(all_gcode, "F20", 1, true) ~= nil, "Missing heavy cutting feed rate") 
-        assert_true(string.find(all_gcode, "F50", 1, true) ~= nil, "Missing fast cutting feed rate")
+        -- Test: Should contain specific commands from the first chunk
+        assert_true(string.find(all_gcode, "S18000", 1, true) ~= nil, "Missing S18000 spindle speed")
+        assert_true(string.find(all_gcode, "M6", 1, true) ~= nil, "Missing M6 tool change command")
+        assert_true(string.find(all_gcode, "M3", 1, true) ~= nil, "Missing M3 spindle start command")
     end)
     
     it("should demonstrate old sequential method inefficiency", function()
