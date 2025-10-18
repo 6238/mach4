@@ -21,6 +21,7 @@ function run_all_tests()
         "test_hello_world",
         "test_ui_functionality",
         "test_gcode_execution",
+        "test_m200_upper_lower_half",
         -- Add more test files as they are created
     }
     

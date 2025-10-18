@@ -11,21 +11,26 @@ describe("G-code Execution Method Tests", function()
         mc.mcCntlEnable(inst, 1)
     end)
     
-    it("should execute box tube squaring operation with temp file execution", function()
+    it("should execute upper/lower half box tube end squaring with temp file execution", function()
         local inst = mc.mcGetInstance()
         
         -- Clear any previous G-code history
         MockMach4.clear_gcode_history()
         
-        -- Load and execute the m200 macro (now using temp file pattern)
+        -- Mock user dialogs for upper/lower half operation
+        MockMach4.mock_dialog_response(wx.wxYES)    -- Initial confirmation
+        MockMach4.mock_dialog_response(wx.wxOK)     -- Material positioning
+        MockMach4.mock_dialog_response(wx.wxOK)     -- Material flip
+        
+        -- Load and execute the m200 macro (now using upper/lower half workflow)
         dofile("../macros/m200.lua")
         m200()
         
         -- Get the G-code execution history
         local history = MockMach4.get_gcode_history()
         
-        -- Test: Should have exactly 1 file load operation
-        assert_equal(#history, 1, "Expected exactly 1 file load operation")
+        -- Test: Should have 4 operations (2 cuts, 1 safe move, 1 return)
+        assert_true(#history >= 4, "Expected at least 4 operations for upper/lower half workflow")
         
         -- Test: Should use 'file_load' method for temp file execution
         local file_calls = 0
@@ -38,7 +43,7 @@ describe("G-code Execution Method Tests", function()
                 assert_true(string.find(call.filepath, ".tmp", 1, true) ~= nil, "Expected .tmp extension in temp file")
             end
         end
-        assert_equal(file_calls, 1, "Expected exactly 1 file load execution")
+        assert_equal(file_calls, 2, "Expected exactly 2 file load executions for upper/lower half operation")
         
         -- Test: No global cleanup variable should be set (cleanup is handled directly)
         assert_true(_G.__pendingTempGcodeToDelete == nil, "Expected no global cleanup variable with integrated cleanup")

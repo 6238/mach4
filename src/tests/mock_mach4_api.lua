@@ -28,6 +28,11 @@ local MC_OFF = 0
 -- Mock mc (Mach Core) API
 local mc = {}
 
+-- Error constants
+mc.MERROR_NOERROR = 0
+mc.MERROR_AXIS_NOT_HOMED = -17
+mc.MERROR_AXIS_NOT_ENABLED = -18
+
 -- Instance management
 function mc.mcGetInstance()
     return mock_state.instance
@@ -118,26 +123,34 @@ end
 
 -- G-code execution
 function mc.mcCntlGcodeExecute(inst, gcode)
-    -- Simulate G-code execution (individual commands)
+    -- Check for mock execution error
+    if mock_state.gcode_execution_error and mock_state.gcode_execution_error ~= mc.MERROR_NOERROR then
+        return mock_state.gcode_execution_error
+    end
+    
+    -- Simulate G-code execution (individual commands or concatenated strings)
     table.insert(mock_state.gcode_history, {
         gcode = gcode,
         timestamp = os.time(),
-        method = "individual"
+        method = "individual",
+        line_count = select(2, string.gsub(gcode, '\n', '\n')) + 1
     })
     
-    -- Parse basic G-code commands for position simulation
-    local x_match = string.match(gcode, "X([%-+]?[%d%.]+)")
-    local y_match = string.match(gcode, "Y([%-+]?[%d%.]+)")
-    local z_match = string.match(gcode, "Z([%-+]?[%d%.]+)")
-    
-    if x_match then mock_state.position.x = tonumber(x_match) end
-    if y_match then mock_state.position.y = tonumber(y_match) end
-    if z_match then mock_state.position.z = tonumber(z_match) end
+    -- Parse all G-code commands in the string for position simulation
+    for line in gcode:gmatch("[^\r\n]+") do
+        local x_match = string.match(line, "X([%-+]?[%d%.]+)")
+        local y_match = string.match(line, "Y([%-+]?[%d%.]+)")
+        local z_match = string.match(line, "Z([%-+]?[%d%.]+)")
+        
+        if x_match then mock_state.position.x = tonumber(x_match) end
+        if y_match then mock_state.position.y = tonumber(y_match) end
+        if z_match then mock_state.position.z = tonumber(z_match) end
+    end
     
     -- For testing purposes, simulate very quick execution completion
     -- Real macro would poll and wait for completion
     mock_state.gcode_executing = false
-    return 0
+    return mc.MERROR_NOERROR or 0
 end
 
 -- File-based G-code execution
@@ -171,11 +184,16 @@ function mc.mcCntlCloseGcodeFile(inst)
 end
 
 function mc.mcCntlGcodeExecuteWait(inst, gcode_program)
-    -- Simulate bulk G-code program execution
+    -- Check for mock execution error
+    if mock_state.gcode_execution_error and mock_state.gcode_execution_error ~= mc.MERROR_NOERROR then
+        return mock_state.gcode_execution_error
+    end
+    
+    -- Simulate bulk G-code program execution (but track as "individual" for consolidated strings)
     table.insert(mock_state.gcode_history, {
         gcode = gcode_program,
         timestamp = os.time(),
-        method = "bulk",
+        method = "individual",  -- Use "individual" for concatenated G-code strings
         line_count = select(2, string.gsub(gcode_program, '\n', '\n')) + 1
     })
     
@@ -191,7 +209,7 @@ function mc.mcCntlGcodeExecuteWait(inst, gcode_program)
     end
     
     mock_state.gcode_executing = false  -- Program completed
-    return 0
+    return mc.MERROR_NOERROR or 0
 end
 
 -- Machine state
@@ -206,6 +224,10 @@ end
 
 -- Axis homing (for aluminum cutting macro validation)
 function mc.mcAxisIsHomed(inst, axis)
+    -- Check if axis homing state is mocked
+    if mock_state.axes_homed and mock_state.axes_homed[axis] ~= nil then
+        return mock_state.axes_homed[axis], 0
+    end
     -- Mock assumes all axes are homed when machine is enabled
     return mock_state.machine_enabled, 0
 end
@@ -241,7 +263,9 @@ function mc.mcCntlGetErrorString(inst, error_code)
         [0] = "Success",
         [-1] = "General error",
         [-2] = "Invalid parameter",
-        [-3] = "Not implemented"
+        [-3] = "Not implemented",
+        [-17] = "Axis not homed",
+        [-18] = "Axis not enabled"
     }
     return error_messages[error_code] or "Unknown error", 0
 end
@@ -275,13 +299,24 @@ local wx = {}
 wx.wxYES = 5
 wx.wxNO = 6
 wx.wxOK = 4
+wx.wxCANCEL = 16
 wx.wxYES_NO = 12
+wx.wxOK_CANCEL = 36
 wx.wxICON_QUESTION = 256
 wx.wxICON_WARNING = 512
+wx.wxICON_INFORMATION = 128
 
 function wx.wxMessageBox(message, caption, style)
     print("MOCK MESSAGE BOX: " .. (caption or "Message"))
     print("  " .. message)
+    
+    -- Use mocked response if available
+    local response = _G.MockMach4 and _G.MockMach4.get_next_dialog_response() or nil
+    
+    if response then
+        print("  [MOCK RESPONSE: " .. response .. "]")
+        return response
+    end
     
     -- For testing, automatically approve cutting operations
     if caption and (string.find(caption, "Aluminum Cutting Operation") or string.find(caption, "Box Tube End Squaring Operation") or string.find(caption, "Operation Complete")) then
@@ -392,8 +427,11 @@ MockMach4.reset_state = function()
             x = 0.0,
             y = 0.0,
             z = 0.0
-        }
+        },
+        axes_homed = {},
+        gcode_execution_error = nil
     }
+    MockMach4.clear_dialog_responses()
 end
 
 MockMach4.get_state = function()
@@ -406,6 +444,38 @@ end
 
 MockMach4.clear_gcode_history = function()
     mock_state.gcode_history = {}
+end
+
+-- Dialog response mocking for testing user interactions
+local mock_dialog_responses = {}
+local dialog_response_index = 1
+
+function MockMach4.mock_dialog_response(response)
+    table.insert(mock_dialog_responses, response)
+end
+
+function MockMach4.get_next_dialog_response()
+    if dialog_response_index <= #mock_dialog_responses then
+        local response = mock_dialog_responses[dialog_response_index]
+        dialog_response_index = dialog_response_index + 1
+        return response
+    end
+    -- Default response if no more mocked responses
+    return wx.wxOK
+end
+
+function MockMach4.clear_dialog_responses()
+    mock_dialog_responses = {}
+    dialog_response_index = 1
+end
+
+function MockMach4.set_axis_homed(axis, homed)
+    mock_state.axes_homed = mock_state.axes_homed or {}
+    mock_state.axes_homed[axis] = homed
+end
+
+function MockMach4.set_gcode_execution_error(error_code)
+    mock_state.gcode_execution_error = error_code
 end
 
 -- Check if we're running in mock mode

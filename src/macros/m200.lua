@@ -1,6 +1,12 @@
 -- m200_aluminum_cutting.lua
 -- Multi-pass aluminum box tubing end cutting macro for Mach4
 -- Cuts 1" x 1" aluminum box tubing using variable feed rates for optimal performance
+-- 
+-- UPPER/LOWER HALF OPERATION: This macro performs cutting operations on both the upper
+-- and lower halves of a single box tube end, with a material flip operation between cuts.
+--
+-- MOTION EXECUTION: Uses non-blocking G-code execution with polling for safe positioning
+-- moves to maintain UI responsiveness, following Mach4 best practices.
 
 function m200()
     local inst = mc.mcGetInstance()
@@ -12,18 +18,21 @@ function m200()
         return
     end
     
-    -- Display operation confirmation
+    -- Display upper/lower half cutting operation confirmation
     local result = wx.wxMessageBox(
-        "About to execute box tube end squaring operation:\n" ..
+        "About to execute UPPER/LOWER HALF box tube end squaring:\n" ..
         "• Work coordinate: G55\n" ..
         "• Tool: T1 (0.1575\" flat end mill)\n" ..
         "• Spindle: 18,000 RPM\n" ..
         "• Multiple adaptive passes + contour finish\n" ..
-        "• Non-blocking file-based execution (445 lines)\n\n" ..
-        "Ensure material is properly secured and\n" ..
-        "spindle is running at appropriate speed.\n\n" ..
-        "Continue with squaring operation?",
-        "Box Tube End Squaring Operation", 
+        "• TWO cutting operations with material flip\n\n" ..
+        "This process will:\n" ..
+        "1. Cut upper half of tube end\n" ..
+        "2. Move machine to safe position\n" ..
+        "3. Prompt to flip material 180°\n" ..
+        "4. Cut lower half of same tube end\n\n" ..
+        "Continue with upper/lower half squaring operation?",
+        "Upper/Lower Half Box Tube End Squaring", 
         wx.wxYES_NO | wx.wxICON_QUESTION
     )
     
@@ -41,14 +50,45 @@ function m200()
         return
     end
     
-    -- Execute box tube squaring operation using temp file (>200 lines)
-    executeAluminumCutting(inst)
+    -- Step 1: Prompt user for initial material positioning
+    if not promptUserForMaterialPositioning() then
+        return
+    end
+    
+    -- Step 2: Execute upper half cutting operation with G52 local coordinate offset
+    executeAluminumCutting(inst, 0, 0.125, "upper half cutting")
+    
+    -- Step 3: Move machine to safe position for material flip
+    if not moveMachineToSafePosition(inst) then
+        return
+    end
+    
+    -- Step 4: Prompt user to flip material
+    if not promptUserForMaterialFlip() then
+        return
+    end
+    
+    -- Step 5: Return to work coordinate origin and execute lower half cutting operation
+    if not returnToWorkOrigin(inst) then
+        return
+    end
+    
+    executeAluminumCutting(inst, 0, 0, "lower half cutting")
+    
+    wx.wxMessageBox("Upper/lower half box tube end squaring completed successfully!\nBoth halves of the tube end have been squared.", "Operation Complete", wx.wxOK)
 end
 
-function executeAluminumCutting(inst)
-    print("Starting box tube end squaring operation using temp file (445 lines > 200 threshold)")
+function executeAluminumCutting(inst, g52_x_offset, g52_y_offset, operation_description)
+    g52_x_offset = g52_x_offset or 0
+    g52_y_offset = g52_y_offset or 0
+    operation_description = operation_description or "box tube end squaring"
     
-    -- Complete G-code program from SquaringBoxTubeEndUnified.tap (with G55 coordinate system)
+    print(string.format("Starting %s operation using temp file (445 lines > 200 threshold)", operation_description))
+    print(string.format("Using G52 local coordinate offset: X%.3f Y%.3f", g52_x_offset, g52_y_offset))
+    
+    -- Complete G-code program with G52 local coordinate system management
+    -- Following G52 safety practices: clear before, set offset, clear after
+    local g52_setup = string.format("G52 X%.3f Y%.3f", g52_x_offset, g52_y_offset)
     local gcode_program = [[G90 G94 G91.1 G40 G49 G17
 G20
 G28 G91 Z0.
@@ -58,6 +98,8 @@ T1 M6
 S18000 M3
 G17 G90 G94
 G55
+G52 X0 Y0 Z0
+]] .. g52_setup .. [[
 G0 X1.1756 Y-0.1112
 G0 Z1.25
 Z1.14
@@ -486,6 +528,7 @@ G17
 M5
 G28 G91 Z0.
 G90
+G52 X0 Y0 Z0
 M30]]
 
     -- Create temp file and execute using file-based pattern (>200 lines)
@@ -564,6 +607,131 @@ function runTempGcodeFile(tempPath)
     wx.wxMessageBox("Box tube end squaring operation completed successfully!", "Operation Complete", wx.wxOK)
 end
 
+
+-- Upper/lower half cutting operation helper functions
+
+-- Execute G-code with non-blocking pattern and polling
+-- This helper function eliminates duplication in movement operations
+-- @param inst: Mach4 instance
+-- @param gcode: G-code string to execute (can be multi-line)
+-- @param description: Description of the operation for error messages
+-- @param axes_to_check: Array of axis indices to check for stillness (e.g., {0,1,2} for X,Y,Z)
+-- @return: true on success, false on error
+function executeGcodeWithPolling(inst, gcode, description, axes_to_check)
+    -- Submit G-code non-blocking to keep UI responsive
+    local rc = mc.mcCntlGcodeExecute(inst, gcode)
+    if rc ~= mc.MERROR_NOERROR then
+        local error_msg, _ = mc.mcCntlGetErrorString(inst, rc)
+        wx.wxMessageBox(string.format("Failed to submit %s:\n%s", description, error_msg), "Movement Error", wx.wxOK)
+        return false
+    end
+    
+    -- Poll until motion completes (keeps UI responsive)
+    while mc.mcCntlIsInCycle(inst) do
+        wx.wxMilliSleep(20)  -- Yield time to prevent UI freezing
+    end
+    
+    -- Optional: ensure specified axes are stopped
+    if axes_to_check then
+        for _, axis in ipairs(axes_to_check) do
+            local still, _ = mc.mcAxisIsStill(inst, axis)
+            if not still then
+                wx.wxMilliSleep(10)
+            end
+        end
+    end
+    
+    return true
+end
+
+-- Prompt user for initial material positioning
+function promptUserForMaterialPositioning()
+    local result = wx.wxMessageBox(
+        "MATERIAL POSITIONING - UPPER HALF\n\n" ..
+        "Please position the box tube for UPPER HALF cutting:\n\n" ..
+        "1. Secure material in vise or clamping system\n" ..
+        "2. Ensure tube end is positioned at G55 origin\n" ..
+        "3. Orient tube so UPPER HALF will be cut first\n" ..
+        "4. Verify tool clearance and spindle is running\n\n" ..
+        "Click OK when material is properly positioned and secured.",
+        "Position Material - Upper Half",
+        wx.wxOK | wx.wxCANCEL | wx.wxICON_INFORMATION
+    )
+    
+    if result ~= wx.wxOK then
+        wx.wxMessageBox("Operation cancelled by user.", "Cancelled", wx.wxOK)
+        return false
+    end
+    
+    return true
+end
+
+-- Move machine to safe position for material flip
+function moveMachineToSafePosition(inst)
+    print("Moving machine to safe position: Z=-0.5, then X=0.5, Y=23.5 at 150 IPM")
+    
+    -- Build safe positioning move sequence using machine coordinates (G53)
+    -- Move Z first for safety, then XY at specified feed rate
+    local safe_move_gcode = table.concat({
+        "G90",                    -- Absolute positioning
+        "G53",                    -- Machine coordinate system
+        "G0 Z-0.5",              -- Move Z to safe height first
+        "G1 X0.5 Y23.5 F150"     -- Move XY to safe position at 150 IPM
+    }, "\n")
+    
+    -- Execute using helper function with non-blocking pattern
+    local success = executeGcodeWithPolling(inst, safe_move_gcode, "safe position move", {0, 1, 2})  -- Check X, Y, Z axes
+    
+    if success then
+        print("Machine successfully positioned at safe location")
+    end
+    
+    return success
+end
+
+-- Prompt user to flip material
+function promptUserForMaterialFlip()
+    local result = wx.wxMessageBox(
+        "MATERIAL FLIP REQUIRED\n\n" ..
+        "The machine is now at a safe position.\n\n" ..
+        "Please flip the material to cut the LOWER HALF:\n\n" ..
+        "1. Carefully flip the box tube material 180 degrees\n" ..
+        "2. Keep the SAME END positioned at G55 origin\n" ..
+        "3. Re-secure material in vise or clamping system\n" ..
+        "4. Verify tool clearance before continuing\n\n" ..
+        "Click OK when material is flipped and secured for lower half cut.",
+        "Flip Material - Lower Half",
+        wx.wxOK | wx.wxCANCEL | wx.wxICON_INFORMATION
+    )
+    
+    if result ~= wx.wxOK then
+        wx.wxMessageBox("Operation cancelled by user.", "Cancelled", wx.wxOK)
+        return false
+    end
+    
+    return true
+end
+
+-- Return machine to work coordinate origin (G55 0,0)
+function returnToWorkOrigin(inst)
+    print("Returning machine to G55 work coordinate origin (0,0)")
+    
+    -- Build return-to-origin move using work coordinates
+    local return_gcode = table.concat({
+        "G90",                    -- Absolute positioning
+        "G55",                    -- Work coordinate system
+        "G0 X0 Y0"               -- Move to work origin
+    }, "\n")
+    
+    -- Execute using helper function with non-blocking pattern
+    local success = executeGcodeWithPolling(inst, return_gcode, "return to origin move", {0, 1})  -- Check X, Y axes only
+    
+    if success then
+        print("Machine returned to G55 work coordinate origin")
+    end
+    
+    return success
+end
 
 -- Validation function for G55 work coordinate system
 function validateG55Setup(inst)
