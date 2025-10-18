@@ -11,49 +11,37 @@ describe("G-code Execution Method Tests", function()
         mc.mcCntlEnable(inst, 1)
     end)
     
-    it("should execute box tube squaring operation with chunked execution", function()
+    it("should execute box tube squaring operation with temp file execution", function()
         local inst = mc.mcGetInstance()
         
         -- Clear any previous G-code history
         MockMach4.clear_gcode_history()
         
-        -- Load and execute the m200 macro (now box tube squaring)
+        -- Load and execute the m200 macro (now using temp file pattern)
         dofile("../macros/m200_hello_world.lua")
         m200()
         
         -- Get the G-code execution history
         local history = MockMach4.get_gcode_history()
         
-        -- Test: Should have at least 1 call (first chunk executed in mock)
-        assert_true(#history >= 1, "Expected at least 1 G-code execution")
+        -- Test: Should have exactly 1 file load operation
+        assert_equal(#history, 1, "Expected exactly 1 file load operation")
         
-        -- Test: Should use 'individual' method for chunked execution
-        local individual_chunks = 0
+        -- Test: Should use 'file_load' method for temp file execution
+        local file_calls = 0
         for i, call in ipairs(history) do
-            if call.method == "individual" then
-                individual_chunks = individual_chunks + 1
+            if call.method == "file_load" then
+                file_calls = file_calls + 1
+                -- Test: Should have a temp file path
+                assert_true(call.filepath ~= nil, "Expected temp file path in file load call")
+                assert_true(string.find(call.filepath, "BoxTube_", 1, true) ~= nil, "Expected BoxTube_ prefix in temp file")
+                assert_true(string.find(call.filepath, ".tmp", 1, true) ~= nil, "Expected .tmp extension in temp file")
             end
         end
-        assert_true(individual_chunks >= 1, "Expected at least 1 individual chunk execution")
+        assert_equal(file_calls, 1, "Expected exactly 1 file load execution")
         
-        -- Test: Should contain box tube squaring G-code commands
-        local all_gcode = ""
-        for _, call in ipairs(history) do
-            all_gcode = all_gcode .. call.gcode .. "\n"
-        end
-        
-        -- Check for key G-code commands from the tap file
-        local expected_commands = {"G55", "G90", "G94", "G17", "T1"}
-        
-        for _, expected in ipairs(expected_commands) do
-            assert_true(string.find(all_gcode, expected, 1, true) ~= nil, 
-                "G-code missing expected box tube squaring command: " .. expected)
-        end
-        
-        -- Test: Should contain specific commands from the first chunk
-        assert_true(string.find(all_gcode, "S18000", 1, true) ~= nil, "Missing S18000 spindle speed")
-        assert_true(string.find(all_gcode, "M6", 1, true) ~= nil, "Missing M6 tool change command")
-        assert_true(string.find(all_gcode, "M3", 1, true) ~= nil, "Missing M3 spindle start command")
+        -- Test: No global cleanup variable should be set (cleanup is handled directly)
+        assert_true(_G.__pendingTempGcodeToDelete == nil, "Expected no global cleanup variable with integrated cleanup")
     end)
     
     it("should demonstrate old sequential method inefficiency", function()

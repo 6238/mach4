@@ -19,7 +19,7 @@ function m200()
         "• Tool: T1 (0.1575\" flat end mill)\n" ..
         "• Spindle: 18,000 RPM\n" ..
         "• Multiple adaptive passes + contour finish\n" ..
-        "• Non-blocking execution with 26 chunks\n\n" ..
+        "• Non-blocking file-based execution (445 lines)\n\n" ..
         "Ensure material is properly secured and\n" ..
         "spindle is running at appropriate speed.\n\n" ..
         "Continue with squaring operation?",
@@ -41,27 +41,24 @@ function m200()
         return
     end
     
-    -- Execute box tube squaring operation
+    -- Execute box tube squaring operation using temp file (>200 lines)
     executeAluminumCutting(inst)
 end
 
 function executeAluminumCutting(inst)
-    print("Starting box tube end squaring operation using chunked G-code execution")
+    print("Starting box tube end squaring operation using temp file (445 lines > 200 threshold)")
     
-    -- Break G-code into logical chunks for non-blocking execution
-    local gcode_chunks = {
-        -- Chunk 1: Setup and tool change
-        [[G90 G94 G91.1 G40 G49 G17
+    -- Complete G-code program from SquaringBoxTubeEndUnified.tap (with G55 coordinate system)
+    local gcode_program = [[G90 G94 G91.1 G40 G49 G17
 G20
 G28 G91 Z0.
 G90
+
 T1 M6
 S18000 M3
 G17 G90 G94
-G55]],
-        
-        -- Chunk 2: First adaptive pass start
-        [[G0 X1.1756 Y-0.1112
+G55
+G0 X1.1756 Y-0.1112
 G0 Z1.25
 Z1.14
 Z0.4815
@@ -73,10 +70,8 @@ X1.1716 Y-0.1088 Z0.4546
 X1.1696 Y-0.1076 Z0.4527
 X1.1672 Y-0.1062 Z0.4512
 X1.1647 Y-0.1047 Z0.4503
-X1.162 Y-0.1031 Z0.45]],
-        
-        -- Chunk 3: First adaptive arc and linear moves
-        [[G3 X1.0789 Y-0.0787 I-0.0892 J-0.15
+X1.162 Y-0.1031 Z0.45
+G3 X1.0789 Y-0.0787 I-0.0892 J-0.15
 G1 X1.0708
 X1.0693 Y-0.0788
 X1.0647 Y-0.0827
@@ -86,10 +81,8 @@ X1.0517 Y-0.099
 X1.0468 Y-0.1077
 X1.0416 Y-0.119
 X1.0361 Y-0.1338
-X1.0303 Y-0.1542]],
-        
-        -- Chunk 4: Continue first adaptive pass
-        [[G1 X1.0248 Y-0.1823
+X1.0303 Y-0.1542
+X1.0248 Y-0.1823
 X1.0201 Y-0.1958
 X1.0119 Y-0.2076
 X0.9914 Y-0.2275
@@ -98,10 +91,8 @@ X0.9525 Y-0.2455
 X0.9453 Y-0.2456
 X0.9383 Y-0.2444
 X0.9249 Y-0.2392
-X0.9027 Y-0.2211]],
-        
-        -- Chunk 5: Complete first adaptive pass
-        [[G1 X0.8874 Y-0.1969
+X0.9027 Y-0.2211
+X0.8874 Y-0.1969
 X0.8774 Y-0.1701
 X0.8708 Y-0.1422
 X0.8666 Y-0.1138
@@ -111,10 +102,8 @@ X0.8604 Y-0.0952
 X0.8545 Y-0.0883
 X0.8472 Y-0.0831
 X0.8388 Y-0.0798
-X0.8298 Y-0.0787]],
-        
-        -- Chunk 6: First adaptive retract and second pass setup
-        [[G3 X0.816 Y-0.101 I0.0005 J-0.0157
+X0.8298 Y-0.0787
+G3 X0.816 Y-0.101 I0.0005 J-0.0157
 G1 X0.8173 Y-0.1038 Z0.4503
 X0.8185 Y-0.1065 Z0.4512
 X0.8197 Y-0.109 Z0.4527
@@ -123,10 +112,8 @@ X0.8215 Y-0.1129 Z0.457
 X0.8221 Y-0.1142 Z0.4597
 X0.8224 Y-0.1151 Z0.4627
 X0.8226 Y-0.1153 Z0.4657
-G0 Z1.14]],
-        
-        -- Chunk 7: Second adaptive pass setup
-        [[G0 X1.114 Y-0.0955
+G0 Z1.14
+X1.114 Y-0.0955
 Z0.4815
 G1 Z0.4657 F75.
 X1.1138 Y-0.0953 Z0.4627
@@ -136,10 +123,8 @@ X1.1101 Y-0.0931 Z0.4546
 X1.108 Y-0.0919 Z0.4527
 X1.1057 Y-0.0905 Z0.4512
 X1.1031 Y-0.089 Z0.4503
-X1.1005 Y-0.0875 Z0.45]],
-        
-        -- Chunk 8: Second adaptive arc and moves
-        [[G3 X1.0708 Y-0.0787 I-0.0318 J-0.0536
+X1.1005 Y-0.0875 Z0.45
+G3 X1.0708 Y-0.0787 I-0.0318 J-0.0536
 G1 X1.05
 X1.044 Y-0.079
 X1.0383 Y-0.0809
@@ -148,10 +133,8 @@ X1.0277 Y-0.0864
 X1.0227 Y-0.0898
 X1.018 Y-0.0935
 X1.0136 Y-0.0975
-X1.0075 Y-0.1014]],
-        
-        -- Chunk 9: Continue second adaptive pass
-        [[G1 X1.0009 Y-0.104
+X1.0075 Y-0.1014
+X1.0009 Y-0.104
 X0.9938 Y-0.1053
 X0.9867 Y-0.1052
 X0.9796 Y-0.1037
@@ -159,18 +142,14 @@ X0.9665 Y-0.098
 X0.9557 Y-0.0882
 X0.9483 Y-0.0831
 X0.9399 Y-0.0798
-X0.931 Y-0.0787]],
-        
-        -- Chunk 10: Second adaptive arcs
-        [[G3 X0.9158 Y-0.095 Z0.458 I0.0005 J-0.0157
+X0.931 Y-0.0787
+G3 X0.9158 Y-0.095 Z0.458 I0.0005 J-0.0157
 X0.9316 Y-0.1102 I0.0157 J0.0005
 G1 X1.0495
 G3 X1.0652 Y-0.095 I0. J0.0157
 X1.05 Y-0.0787 Z0.45 I-0.0157 J0.0005
-G1 X0.8776]],
-        
-        -- Chunk 11: Second adaptive retract
-        [[G3 X0.8638 Y-0.101 I0.0005 J-0.0157
+G1 X0.8776
+G3 X0.8638 Y-0.101 I0.0005 J-0.0157
 G1 X0.8651 Y-0.1038 Z0.4503
 X0.8663 Y-0.1065 Z0.4512
 X0.8674 Y-0.109 Z0.4527
@@ -179,10 +158,9 @@ X0.8692 Y-0.1129 Z0.457
 X0.8698 Y-0.1142 Z0.4597
 X0.8702 Y-0.1151 Z0.4627
 X0.8703 Y-0.1153 Z0.4657
-G0 Z1.25]],
-        
-        -- Chunk 12: Third adaptive pass setup (deeper)
-        [[G0 Z1.28
+G0 Z1.25
+
+G0 Z1.28
 X1.1765 Y-0.1112
 Z1.28
 Z1.14
@@ -191,10 +169,8 @@ G1 Z0.8507 F75.
 X1.1762 Y-0.111 Z0.8477
 X1.1755 Y-0.1106 Z0.8447
 X1.1742 Y-0.1098 Z0.842
-X1.1725 Y-0.1088 Z0.8396]],
-        
-        -- Chunk 13: Third adaptive pass continues (first section)
-        [[G1 X1.1705 Y-0.1076 Z0.8377
+X1.1725 Y-0.1088 Z0.8396
+X1.1705 Y-0.1076 Z0.8377
 X1.1681 Y-0.1062 Z0.8362
 X1.1656 Y-0.1047 Z0.8353
 X1.163 Y-0.1031 Z0.835
@@ -203,10 +179,8 @@ G1 X1.0718
 X1.0703 Y-0.0788
 X1.0656 Y-0.0825
 X1.0613 Y-0.0868
-X1.0572 Y-0.0918]],
-        
-        -- Chunk 14: Third adaptive pass (long cutting section)
-        [[G1 X1.0526 Y-0.0983
+X1.0572 Y-0.0918
+X1.0526 Y-0.0983
 X1.0478 Y-0.1066
 X1.0426 Y-0.1173
 X1.0371 Y-0.1314
@@ -215,10 +189,8 @@ X1.0255 Y-0.1785
 X1.0222 Y-0.1924
 X1.0147 Y-0.2046
 X0.9951 Y-0.2255
-X0.9702 Y-0.2397]],
-        
-        -- Chunk 15: Third adaptive pass (more cutting)
-        [[G1 X0.9431 Y-0.249
+X0.9702 Y-0.2397
+X0.9431 Y-0.249
 X0.9151 Y-0.2551
 X0.8867 Y-0.259
 X0.8582 Y-0.2615
@@ -227,10 +199,8 @@ X0.801 Y-0.2641
 X0.7723 Y-0.2647
 X0.7437 Y-0.2651
 X0.715 Y-0.2653
-X0.6864 Y-0.2655]],
-        
-        -- Chunk 16: Third adaptive pass (final long cut)
-        [[G1 X0.6291 Y-0.2656
+X0.6864 Y-0.2655
+X0.6291 Y-0.2656
 X0.5145 Y-0.2657
 X0.0704
 X0.0566 Y-0.262
@@ -239,19 +209,15 @@ X0.0239 Y-0.2344
 X0.0099 Y-0.2094
 X0.0007 Y-0.1823
 X-0.0053 Y-0.1543
-X-0.0091 Y-0.1259]],
-        
-        -- Chunk 17: Third adaptive pass (final section)
-        [[G1 X-0.0103 Y-0.1124
+X-0.0091 Y-0.1259
+X-0.0103 Y-0.1124
 X-0.0122 Y-0.1035
 X-0.0162 Y-0.0953
 X-0.022 Y-0.0884
 X-0.0294 Y-0.0832
 X-0.0379 Y-0.0799
-X-0.0469 Y-0.0787]],
-        
-        -- Chunk 18: Third adaptive retract
-        [[G3 X-0.0607 Y-0.101 I0.0005 J-0.0157
+X-0.0469 Y-0.0787
+G3 X-0.0607 Y-0.101 I0.0005 J-0.0157
 G1 X-0.0594 Y-0.1038 Z0.8353
 X-0.0582 Y-0.1065 Z0.8362
 X-0.057 Y-0.109 Z0.8377
@@ -260,10 +226,8 @@ X-0.0552 Y-0.1129 Z0.842
 X-0.0546 Y-0.1142 Z0.8447
 X-0.0543 Y-0.1151 Z0.8477
 X-0.0541 Y-0.1153 Z0.8507
-G0 Z1.14]],
-        
-        -- Chunk 19: Fourth adaptive section
-        [[G0 X1.115 Y-0.0955
+G0 Z1.14
+X1.115 Y-0.0955
 Z0.8665
 G1 Z0.8507 F75.
 X1.1147 Y-0.0953 Z0.8477
@@ -273,10 +237,8 @@ X1.111 Y-0.0931 Z0.8396
 X1.1089 Y-0.0919 Z0.8377
 X1.1066 Y-0.0905 Z0.8362
 X1.1041 Y-0.089 Z0.8353
-X1.1014 Y-0.0875 Z0.835]],
-        
-        -- Chunk 20: Fourth adaptive cutting (long section)
-        [[G3 X1.0718 Y-0.0787 I-0.0318 J-0.0536
+X1.1014 Y-0.0875 Z0.835
+G3 X1.0718 Y-0.0787 I-0.0318 J-0.0536
 G1 X1.0493
 X1.0433 Y-0.079
 X1.0378 Y-0.0815
@@ -285,10 +247,8 @@ X1.0271 Y-0.0881
 X1.0213 Y-0.0928
 X1.0154 Y-0.0983
 X1.0089 Y-0.1056
-X0.9915 Y-0.1284]],
-        
-        -- Chunk 21: Fourth adaptive extensive cutting
-        [[G1 X0.9712 Y-0.1486
+X0.9915 Y-0.1284
+X0.9712 Y-0.1486
 X0.9473 Y-0.1644
 X0.9211 Y-0.176
 X0.8937 Y-0.1844
@@ -297,10 +257,8 @@ X0.8373 Y-0.1943
 X0.8088 Y-0.1971
 X0.7802 Y-0.199
 X0.7516 Y-0.2002
-X0.7229 Y-0.2011]],
-        
-        -- Chunk 22: Fourth adaptive more cutting
-        [[G1 X0.6943 Y-0.2017
+X0.7229 Y-0.2011
+X0.6943 Y-0.2017
 X0.6657 Y-0.202
 X0.637 Y-0.2023
 X0.6084 Y-0.2024
@@ -309,10 +267,8 @@ X0.4651 Y-0.2027
 X0.15 Y-0.2028
 X0.1361 Y-0.1992
 X0.1233 Y-0.1927
-X0.1005 Y-0.1754]],
-        
-        -- Chunk 23: Fourth adaptive final section
-        [[G1 X0.0837 Y-0.1522
+X0.1005 Y-0.1754
+X0.0837 Y-0.1522
 X0.0704 Y-0.1268
 X0.0587 Y-0.1043
 X0.0536 Y-0.096
@@ -320,10 +276,8 @@ X0.0477 Y-0.0889
 X0.0403 Y-0.0834
 X0.0316 Y-0.0799
 X0.0224 Y-0.0787
-X0.0027]],
-        
-        -- Chunk 24: Fourth adaptive retract
-        [[G3 X-0.0111 Y-0.101 I0.0005 J-0.0157
+X0.0027
+G3 X-0.0111 Y-0.101 I0.0005 J-0.0157
 G1 X-0.0098 Y-0.1038 Z0.8353
 X-0.0086 Y-0.1065 Z0.8362
 X-0.0075 Y-0.109 Z0.8377
@@ -332,10 +286,188 @@ X-0.0057 Y-0.1129 Z0.842
 X-0.0051 Y-0.1142 Z0.8447
 X-0.0047 Y-0.1151 Z0.8477
 X-0.0046 Y-0.1153 Z0.8507
-G0 Z1.14]],
-        
-        -- Chunk 25: Final contour operation
-        [[G0 Z1.6
+G0 Z1.14
+X1.0925 Y-0.0955
+Z0.8665
+G1 Z0.8507 F75.
+X1.0923 Y-0.0953 Z0.8477
+X1.0915 Y-0.0949 Z0.8447
+X1.0902 Y-0.0941 Z0.842
+X1.0886 Y-0.0931 Z0.8396
+X1.0865 Y-0.0919 Z0.8377
+X1.0842 Y-0.0905 Z0.8362
+X1.0816 Y-0.089 Z0.8353
+X1.079 Y-0.0875 Z0.835
+G3 X1.0493 Y-0.0787 I-0.0318 J-0.0536
+G1 X1.0168
+X1.0108 Y-0.079
+X1.0032 Y-0.0803
+X0.9896 Y-0.0838
+X0.9625 Y-0.093
+X0.9356 Y-0.1029
+X0.9083 Y-0.1117
+X0.8806 Y-0.1189
+X0.8525 Y-0.1245
+X0.8242 Y-0.1288
+X0.7957 Y-0.1319
+X0.7672 Y-0.1342
+X0.7386 Y-0.1359
+X0.7099 Y-0.1371
+X0.6813 Y-0.1379
+X0.6527 Y-0.1385
+X0.624 Y-0.1389
+X0.5954 Y-0.1392
+X0.5667 Y-0.1394
+X0.5381 Y-0.1395
+X0.4808 Y-0.1396
+X0.3662 Y-0.1397
+X0.2229 Y-0.1398
+X0.1948 Y-0.1343
+X0.17 Y-0.1199
+X0.1484 Y-0.1011
+X0.1371 Y-0.0896
+X0.1295 Y-0.0837
+X0.1205 Y-0.08
+X0.111 Y-0.0787
+X0.0224
+G3 X0.0086 Y-0.101 I0.0005 J-0.0157
+G1 X0.0099 Y-0.1038 Z0.8353
+X0.0111 Y-0.1065 Z0.8362
+X0.0123 Y-0.109 Z0.8377
+X0.0133 Y-0.1111 Z0.8396
+X0.0141 Y-0.1129 Z0.842
+X0.0147 Y-0.1142 Z0.8447
+X0.0151 Y-0.1151 Z0.8477
+X0.0152 Y-0.1153 Z0.8507
+G0 Z1.14
+X1.06 Y-0.0955
+Z0.8665
+G1 Z0.8507 F75.
+X1.0598 Y-0.0953 Z0.8477
+X1.059 Y-0.0949 Z0.8447
+X1.0577 Y-0.0941 Z0.842
+X1.0561 Y-0.0931 Z0.8396
+X1.054 Y-0.0919 Z0.8377
+X1.0517 Y-0.0905 Z0.8362
+X1.0491 Y-0.089 Z0.8353
+X1.0465 Y-0.0875 Z0.835
+G3 X1.0168 Y-0.0787 I-0.0318 J-0.0536
+G1 X0.111
+G3 X0.0972 Y-0.101 I0.0005 J-0.0157
+G1 X0.0985 Y-0.1038 Z0.8353
+X0.0997 Y-0.1065 Z0.8362
+X0.1008 Y-0.109 Z0.8377
+X0.1018 Y-0.1111 Z0.8396
+X0.1026 Y-0.1129 Z0.842
+X0.1032 Y-0.1142 Z0.8447
+X0.1036 Y-0.1151 Z0.8477
+X0.1037 Y-0.1153 Z0.8507
+G0 Z1.28
+
+G0 X0.3012 Y-0.1112
+Z1.24
+Z1.14
+Z0.4915
+G1 Z0.4757 F75.
+X0.301 Y-0.111 Z0.4727
+X0.3002 Y-0.1106 Z0.4697
+X0.299 Y-0.1098 Z0.467
+X0.2973 Y-0.1088 Z0.4646
+X0.2952 Y-0.1076 Z0.4627
+X0.2929 Y-0.1062 Z0.4612
+X0.2903 Y-0.1047 Z0.4603
+X0.2877 Y-0.1031 Z0.46
+G3 X0.2046 Y-0.0787 I-0.0892 J-0.15
+G1 X0.1968
+X0.1953 Y-0.0788
+X0.1906 Y-0.0825
+X0.1863 Y-0.0868
+X0.1822 Y-0.0918
+X0.1777 Y-0.0983
+X0.1728 Y-0.1066
+X0.1676 Y-0.1172
+X0.1622 Y-0.1313
+X0.1565 Y-0.1503
+X0.1505 Y-0.1784
+X0.1473 Y-0.1923
+X0.1398 Y-0.2046
+X0.1202 Y-0.2254
+X0.0953 Y-0.2396
+X0.0818 Y-0.2443
+X0.0749 Y-0.2463
+X0.0678 Y-0.2468
+X0.0606 Y-0.246
+X0.0538 Y-0.2438
+X0.0413 Y-0.2368
+X0.0217 Y-0.2159
+X0.0085 Y-0.1905
+X-0.0003 Y-0.1632
+X-0.0059 Y-0.1351
+X-0.009 Y-0.1109
+X-0.0111 Y-0.1023
+X-0.0153 Y-0.0945
+X-0.0211 Y-0.0879
+X-0.0284 Y-0.0829
+X-0.0367 Y-0.0798
+X-0.0454 Y-0.0787
+G3 X-0.0592 Y-0.101 I0.0005 J-0.0157
+G1 X-0.0579 Y-0.1038 Z0.4603
+X-0.0567 Y-0.1065 Z0.4612
+X-0.0556 Y-0.109 Z0.4627
+X-0.0546 Y-0.1111 Z0.4646
+X-0.0538 Y-0.1129 Z0.467
+X-0.0532 Y-0.1142 Z0.4697
+X-0.0528 Y-0.1151 Z0.4727
+X-0.0527 Y-0.1153 Z0.4757
+G0 Z1.14
+X0.24 Y-0.0955
+Z0.4915
+G1 Z0.4757 F75.
+X0.2397 Y-0.0953 Z0.4727
+X0.239 Y-0.0949 Z0.4697
+X0.2377 Y-0.0941 Z0.467
+X0.236 Y-0.0931 Z0.4646
+X0.234 Y-0.0919 Z0.4627
+X0.2316 Y-0.0905 Z0.4612
+X0.2291 Y-0.089 Z0.4603
+X0.2265 Y-0.0875 Z0.46
+G3 X0.1968 Y-0.0787 I-0.0318 J-0.0536
+G1 X0.1737
+X0.1677 Y-0.079
+X0.1621 Y-0.0811
+X0.1567 Y-0.0838
+X0.1516 Y-0.0869
+X0.1467 Y-0.0904
+X0.1421 Y-0.0942
+X0.1377 Y-0.0983
+X0.1317 Y-0.1022
+X0.1251 Y-0.105
+X0.1181 Y-0.1064
+X0.1109
+X0.1039 Y-0.105
+X0.0973 Y-0.1023
+X0.0733 Y-0.0866
+X0.0678 Y-0.0823
+X0.0614 Y-0.0797
+X0.0544 Y-0.0787
+G3 X0.0392 Y-0.095 Z0.468 I0.0005 J-0.0157
+X0.055 Y-0.1102 I0.0157 J0.0005
+G1 X0.1732
+G3 X0.1889 Y-0.095 I0. J0.0157
+X0.1737 Y-0.0787 Z0.46 I-0.0157 J0.0005
+G1 X0.0019
+G3 X-0.0118 Y-0.101 I0.0005 J-0.0157
+G1 X-0.0106 Y-0.1038 Z0.4603
+X-0.0093 Y-0.1065 Z0.4612
+X-0.0082 Y-0.109 Z0.4627
+X-0.0072 Y-0.1111 Z0.4646
+X-0.0064 Y-0.1129 Z0.467
+X-0.0058 Y-0.1142 Z0.4697
+X-0.0054 Y-0.1151 Z0.4727
+X-0.0053 Y-0.1153 Z0.4757
+G0 Z1.24
+
+G0 Z1.6
 X1.1 Y-0.3787
 Z1.6
 Z1.1
@@ -349,82 +481,87 @@ G3 X-0.1 Y-0.1787 I0. J-0.1
 G1 Y-0.2787
 G19 G2 Y-0.3787 Z0.56 J0. K0.1
 G0 Z1.6
-G17]],
-        
-        -- Chunk 26: Cleanup and shutdown
-        [[M5
+G17
+
+M5
 G28 G91 Z0.
 G90
 M30]]
-    }
-    
-    -- Execute chunks with non-blocking timer-based monitoring
-    executeGcodeChunks(gcode_chunks, function()
-        wx.wxMessageBox("Box tube end squaring operation completed successfully!", "Success", wx.wxOK)
-    end)
+
+    -- Create temp file and execute using file-based pattern (>200 lines)
+    local tempPath = makeTempGcodeFile("BoxTube_", gcode_program)
+    runTempGcodeFile(tempPath)
 end
 
--- Non-blocking chunked G-code execution function
-function executeGcodeChunks(gcode_chunks, completion_callback)
+-- Temp file helpers following GCODE_EXECUTION_BEST_PRACTICES (Pattern C)
+
+-- Create a temporary G-code file
+function makeTempGcodeFile(prefix, gcode_text)
+    local std = wx.wxStandardPaths.Get()
+    local tempDir = std:GetTempDir()
+
+    -- Create a unique temp file path (empty file gets created)
+    local tempPath = wx.wxFileName.CreateTempFileName(prefix or "Mach4_")
+
+    -- Sanity check the directory and file
+    if (not tempPath) or (tempPath == "") then
+        error("Failed to create a temp file name in: " .. tostring(tempDir))
+    end
+
+    -- Write G-code in binary to avoid newline surprises
+    local f, err = io.open(tempPath, "wb")
+    if not f then
+        error("Unable to open temp file for write: " .. tostring(err))
+    end
+    f:write(gcode_text)
+    f:close()
+
+    print(string.format("Created temp G-code file: %s", tempPath))
+    return tempPath
+end
+
+-- Run a temp G-code file, wait for completion, and clean up
+function runTempGcodeFile(tempPath)
     local inst = mc.mcGetInstance()
-    local current_chunk = 1
-    local executing = false
+
+    -- Load + start
+    local rc1 = mc.mcCntlLoadGcodeFile(inst, tempPath)
+    if rc1 ~= 0 then
+        wx.wxRemoveFile(tempPath)  -- best effort cleanup
+        local error_msg, _ = mc.mcCntlGetErrorString(inst, rc1)
+        wx.wxMessageBox(string.format("Failed to load G-code file:\n%s", error_msg), "File Load Error", wx.wxOK)
+        return
+    end
     
-    -- Create timer for non-blocking status monitoring
-    local timerPanel = wx.wxPanel()
-    local timer = wx.wxTimer(timerPanel)
+    mc.mcCntlCycleStart(inst)
+    print("Started G-code file execution - waiting for completion...")
     
-    local function submitNextChunk()
-        if current_chunk <= #gcode_chunks and not executing then
-            executing = true
-            
-            print(string.format("Executing chunk %d of %d", current_chunk, #gcode_chunks))
-            
-            -- Submit chunk (non-blocking)
-            local rc = mc.mcCntlGcodeExecute(inst, gcode_chunks[current_chunk])
-            if rc ~= 0 then
-                local error_msg, _ = mc.mcCntlGetErrorString(inst, rc)
-                wx.wxMessageBox(string.format("G-code Error on chunk %d:\n%s", current_chunk, error_msg), "Error", wx.wxOK)
-                return
-            end
-            
-            current_chunk = current_chunk + 1
-            timer:Start(100)  -- Check completion every 100ms
-            
-        elseif current_chunk > #gcode_chunks then
-            -- All chunks complete
-            print("All G-code chunks executed successfully")
-            if completion_callback then
-                completion_callback()
-            end
+    -- Wait for motion to complete (following runAndWait pattern from best practices)
+    while mc.mcCntlIsInCycle(inst) do
+        wx.wxMilliSleep(20)  -- yield time; don't starve UI/PLC
+    end
+    
+    -- Optional: ensure all axes stopped  
+    for a=0,5 do
+        if mc.mcAxisIsStill(inst, a) == 0 then
+            wx.wxMilliSleep(10)
         end
     end
     
-    -- Timer callback for completion detection
-    timerPanel:Connect(wx.wxEVT_TIMER, function()
-        local inCycle, rc = mc.mcCntlIsInCycle(inst)
-        local isStill, rc2 = mc.mcCntlIsStill(inst)
-        
-        -- Both conditions must be true for safe continuation
-        if not inCycle and isStill then
-            timer:Stop()
-            executing = false
-            
-            -- Check for emergency stop before continuing
-            local state, rc3 = mc.mcCntlGetState(inst)
-            if state == 200 then  -- Machine ready state
-                submitNextChunk()  -- Continue with next chunk
-            else
-                wx.wxMessageBox(string.format("Machine not ready (state = %d). Operation stopped.", state), "Machine State Error", wx.wxOK)
-                return
-            end
-        end
-        
-        -- Allow UI to remain responsive
-        wx.wxSafeYield()
-    end)
+    print("G-code execution completed - cleaning up temp file")
     
-    submitNextChunk()  -- Start the process
+    -- Close the file so Windows releases the handle
+    mc.mcCntlCloseGcodeFile(inst)
+    
+    -- A tiny delay helps on some systems before removing the file
+    wx.wxMilliSleep(10)
+    
+    -- Clean up the temp file
+    wx.wxRemoveFile(tempPath)
+    print("Temp file cleaned up: " .. tempPath)
+    
+    -- Show completion message
+    wx.wxMessageBox("Box tube end squaring operation completed successfully!", "Operation Complete", wx.wxOK)
 end
 
 

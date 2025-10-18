@@ -140,6 +140,36 @@ function mc.mcCntlGcodeExecute(inst, gcode)
     return 0
 end
 
+-- File-based G-code execution
+function mc.mcCntlLoadGcodeFile(inst, filepath)
+    -- Simulate loading a G-code file
+    table.insert(mock_state.gcode_history, {
+        gcode = "FILE_LOAD: " .. filepath,
+        timestamp = os.time(),
+        method = "file_load",
+        filepath = filepath
+    })
+    
+    print("MOCK: Loaded G-code file: " .. filepath)
+    return 0  -- Success
+end
+
+function mc.mcCntlCycleStart(inst)
+    -- Simulate starting the loaded program
+    mock_state.gcode_executing = true
+    print("MOCK: Started G-code execution")
+    
+    -- For testing, immediately complete the cycle
+    mock_state.gcode_executing = false
+    return 0
+end
+
+function mc.mcCntlCloseGcodeFile(inst)
+    -- Simulate closing the G-code file
+    print("MOCK: Closed G-code file")
+    return 0
+end
+
 function mc.mcCntlGcodeExecuteWait(inst, gcode_program)
     -- Simulate bulk G-code program execution
     table.insert(mock_state.gcode_history, {
@@ -191,6 +221,11 @@ function mc.mcCntlIsInCycle(inst)
 end
 
 function mc.mcCntlIsStill(inst)
+    return not mock_state.gcode_executing, 0
+end
+
+-- Individual axis still check
+function mc.mcAxisIsStill(inst, axis)
     return not mock_state.gcode_executing, 0
 end
 
@@ -249,7 +284,7 @@ function wx.wxMessageBox(message, caption, style)
     print("  " .. message)
     
     -- For testing, automatically approve cutting operations
-    if caption and (string.find(caption, "Aluminum Cutting Operation") or string.find(caption, "Box Tube End Squaring Operation")) then
+    if caption and (string.find(caption, "Aluminum Cutting Operation") or string.find(caption, "Box Tube End Squaring Operation") or string.find(caption, "Operation Complete")) then
         print("  [MOCK AUTO-APPROVING cutting operation]")
         return wx.wxYES
     end
@@ -261,6 +296,13 @@ end
 -- Mock wxSafeYield for progress monitoring
 function wx.wxSafeYield()
     -- No-op for testing
+end
+
+-- Mock wxMilliSleep for waiting in loops
+function wx.wxMilliSleep(ms)
+    -- For testing, just print that we're waiting
+    -- In real usage, this would pause execution
+    -- print("MOCK: Sleeping " .. ms .. "ms")
 end
 
 -- Mock wxPanel for timer creation
@@ -300,6 +342,34 @@ end
 
 -- Mock timer event type
 wx.wxEVT_TIMER = 10001
+
+-- Mock wxStandardPaths for temp file creation
+local wxStandardPaths = {}
+function wxStandardPaths.Get()
+    local std = {}
+    function std:GetTempDir()
+        -- Return a mock temp directory
+        return "/tmp"
+    end
+    return std
+end
+wx.wxStandardPaths = wxStandardPaths
+
+-- Mock wxFileName for temp file creation
+local wxFileName = {}
+function wxFileName.CreateTempFileName(prefix)
+    -- Create a mock temp file path
+    local timestamp = os.time()
+    local random = math.random(1000, 9999)
+    return string.format("/tmp/%s%d_%d.tmp", prefix or "test_", timestamp, random)
+end
+wx.wxFileName = wxFileName
+
+-- Mock file removal function
+function wx.wxRemoveFile(filepath)
+    print("MOCK: Removing file: " .. filepath)
+    return true
+end
 
 _G.wx = wx
 
