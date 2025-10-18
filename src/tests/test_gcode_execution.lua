@@ -18,7 +18,7 @@ describe("G-code Execution Method Tests", function()
         MockMach4.clear_gcode_history()
         
         -- Load and execute the m200 macro (now using temp file pattern)
-        dofile("../macros/m200_hello_world.lua")
+        dofile("../macros/m200.lua")
         m200()
         
         -- Get the G-code execution history

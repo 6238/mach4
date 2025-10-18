@@ -15,7 +15,7 @@ Create a Mach4 plugin for Avid Benchtop Pro CNC that accepts user inputs and gen
 ### ✅ Completed Implementation - Hello World Version
 **What's Working:**
 - **Testing Framework**: Custom Lua test suite with mock Mach4 API for offline development
-- **Basic Macro**: Simple 2x2 inch square movement (`m200_hello_world.lua`)
+- **Basic Macro**: Simple 2x2 inch square movement (`m200.lua`)
 - **Custom UI**: Text input + button with validation and safety checks
 - **Safety Systems**: Machine state verification, input validation, error handling
 - **9 Passing Tests**: Complete test coverage of core functionality
