@@ -16,16 +16,6 @@ This project is for creating a plugin to develop user interface widgets for the 
 
 - `research/` - Directory for Mach4 plugin development research and documentation
 
-## Development Setup
-
-Since this is an empty repository, there are no established build, test, or lint commands yet. Future development will need to establish:
-
-- Project type and language selection
-- Package management configuration (package.json, requirements.txt, etc.)
-- Build and development tooling
-- Testing framework setup
-- Code quality tools (linting, formatting)
-
 ## Helper Scripts
 
 **Preference: Use Python for helper scripts to support research activities.**
@@ -39,15 +29,15 @@ When creating utility scripts for data processing, analysis, or research automat
 Following modern Python development practices, this project uses local virtual environments to isolate dependencies:
 
 #### Setup Instructions:
-1. **Create virtual environment:** `python3 -m venv venv`
-2. **Activate environment:** `source venv/bin/activate` (macOS/Linux) or `venv\Scripts\activate` (Windows)
+1. **Create virtual environment:** `python3 -m venv scripts/venv`
+2. **Activate environment:** `source scripts/venv/bin/activate` (macOS/Linux) or `scripts\venv\Scripts\activate` (Windows)
 3. **Install packages:** `pip install package_name`
-4. **Save dependencies:** `pip freeze > requirements.txt`
-5. **Install from requirements:** `pip install -r requirements.txt`
+4. **Save dependencies:** `pip freeze > scripts/requirements.txt`
+5. **Install from requirements:** `pip install -r scripts/requirements.txt`
 
 #### Running Scripts:
 - Always activate the virtual environment before running scripts
-- Example: `source venv/bin/activate && python3 scripts/fetch_forum_thread.py`
+- Example: `source scripts/venv/bin/activate && python3 scripts/fetch_forum_thread.py`
 
 #### Current Dependencies:
 - `requests` - HTTP client for web scraping
@@ -56,7 +46,7 @@ Following modern Python development practices, this project uses local virtual e
 - `yt-dlp` - Video metadata extraction
 - `PyMuPDF` - PDF text extraction and processing
 
-The virtual environment is located in the project root at `venv/` and should not be committed to version control.
+The virtual environment is located at `scripts/venv/` and should not be committed to version control.
 
 ### YouTube Transcript Downloader
 
@@ -99,7 +89,7 @@ research/
 
 #### Requirements:
 - Virtual environment must be activated
-- Dependencies installed: `pip install -r requirements.txt`
+- Dependencies installed: `pip install -r scripts/requirements.txt`
 - Internet connection for video metadata and transcript access
 
 ### PDF to Markdown Converter
@@ -118,7 +108,7 @@ A utility for converting PDF files to Markdown format, specifically designed for
 #### Usage:
 ```bash
 # Activate virtual environment
-source venv/bin/activate
+source scripts/venv/bin/activate
 
 # Convert a single PDF file
 python3 scripts/pdf_to_markdown.py path/to/document.pdf
@@ -150,7 +140,7 @@ research/
 
 #### Requirements:
 - Virtual environment must be activated
-- Dependencies installed: `pip install -r requirements.txt`
+- Dependencies installed: `pip install -r scripts/requirements.txt`
 - PDF files must be text-based (not scanned images)
 
 ## Development Context
@@ -195,3 +185,7 @@ The test suite validates:
 - Error handling and edge cases
 
 **Test failures must be resolved before proceeding with additional development.**
+
+## G-code Execution Architecture
+
+When writing code related to Gcode, be sure to all of GCODE_EXECUTION_BEST_PRACTICES.md and follow the instruction in that file.
